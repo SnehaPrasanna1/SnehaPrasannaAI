@@ -1,0 +1,117 @@
+import heapq
+
+# Function to check if the puzzle is in the goal state
+def is_goal(state, goal_state):
+    return state == goal_state
+
+# Function to count the number of misplaced tiles (heuristic function h(n))
+def misplaced_tiles(state, goal_state):
+    count = 0
+    for i in range(len(state)):
+        if state[i] != goal_state[i] and state[i] != 0:  # Exclude the blank tile (0)
+            count += 1
+    return count
+
+# Function to find possible moves (successors) from the current state
+def get_successors(state):
+    successors = []
+    blank_idx = state.index(0)  # Find the index of the blank (0)
+    
+    # Possible moves: up, down, left, right
+    moves = {
+        "up": -3, "down": 3, "left": -1, "right": 1
+    }
+    
+    for direction, move in moves.items():
+        new_idx = blank_idx + move
+        if 0 <= new_idx < 9:  # Check if the move is within bounds
+            if direction == "left" and blank_idx % 3 == 0:
+                continue  # Skip invalid move to the left
+            if direction == "right" and blank_idx % 3 == 2:
+                continue  # Skip invalid move to the right
+            new_state = state[:]
+            new_state[blank_idx], new_state[new_idx] = new_state[new_idx], new_state[blank_idx]
+            successors.append(new_state)
+    
+    return successors
+
+# A* Algorithm using Misplaced Tiles heuristic
+def astar_misplaced_tiles(start_state, goal_state):
+    open_list = []
+    closed_list = set()
+    
+    # Push the initial state into the priority queue (heap), with f = g + h
+    heapq.heappush(open_list, (misplaced_tiles(start_state, goal_state), 0, start_state, []))
+    
+    print(f"\nLevel 0 (Initial State):")
+    display_states_with_costs([start_state], [0], [misplaced_tiles(start_state, goal_state)])  # Display the start state
+
+    level = 1  # Track levels for display
+    
+    while open_list:
+        f, g, current_state, path = heapq.heappop(open_list)
+        
+        if is_goal(current_state, goal_state):
+            return path + [current_state]  # Return the path when goal is reached
+        
+        if tuple(current_state) in closed_list:
+            continue
+        
+        closed_list.add(tuple(current_state))
+        
+        # Expand the current node (find successors)
+        level_states = []
+        level_g = []
+        level_h = []
+        for successor in get_successors(current_state):
+            new_g = g + 1  # Increment the cost to reach the successor
+            new_h = misplaced_tiles(successor, goal_state)
+            new_f = new_g + new_h
+            heapq.heappush(open_list, (new_f, new_g, successor, path + [current_state]))
+            level_states.append(successor)
+            level_g.append(new_g)
+            level_h.append(new_h)
+        
+        # Display all states expanded at this level, including the ones that might be re-expanded or already visited
+        if level_states:
+            print(f"\nLevel {level}:")
+            display_states_with_costs(level_states, level_g, level_h)
+            level += 1
+
+    return None  # No solution found
+
+# Function to display the 8-puzzle in a readable format, multiple states side by side
+# Also display the g(n) and h(n) values
+def display_states_with_costs(states, g_values, h_values):
+    lines = [""] * 3  # Each puzzle has 3 lines
+    
+    for idx, state in enumerate(states):
+        for i in range(0, 9, 3):
+            lines[i // 3] += f"{state[i:i+3]}    "
+        lines.append(f"g(n)={g_values[idx]}, h(n)={h_values[idx]}    ")
+
+    for line in lines:
+        print(line)
+
+# Main function to take input and run the A* algorithm
+def main():
+    print("Enter the start state of the 8-puzzle (9 numbers, use 0 for the blank tile):")
+    start_state = list(map(int, input().split()))
+
+    print("Enter the goal state of the 8-puzzle (9 numbers, use 0 for the blank tile):")
+    goal_state = list(map(int, input().split()))
+
+    print("\nSolving the 8-puzzle...\n")
+    
+    solution = astar_misplaced_tiles(start_state, goal_state)
+    
+    if solution:
+        print("\nSolution Path Found!")
+        for step, state in enumerate(solution):
+            print(f"Step {step}:")
+            display_states_with_costs([state], [step], [misplaced_tiles(state, goal_state)])
+    else:
+        print("No solution found.")
+
+if __name__ == "__main__":
+    main()
